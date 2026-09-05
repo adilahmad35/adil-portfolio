@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import projects from "./data/projects";
@@ -12,52 +12,69 @@ function ProjectPage() {
 
   const [selectedImage, setSelectedImage] = useState(null);
 
+  // Always open project pages from the top
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  // Prevent background scrolling when image modal is open
+  useEffect(() => {
+    if (selectedImage !== null) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [selectedImage]);
+
   if (!project) {
     return (
       <div className="not-found">
-
         <h1>Project not found.</h1>
 
         <Link to="/">
           ← Back Home
         </Link>
-
       </div>
     );
   }
 
+  // Create one complete list of images
+  const allImages = [
+    project.image,
+    ...(project.images || []).filter(
+      (image) => image !== project.image
+    ),
+  ];
 
   const openImage = (index) => {
     setSelectedImage(index);
   };
 
-
   const closeImage = () => {
     setSelectedImage(null);
   };
 
-
   const nextImage = () => {
+    setSelectedImage((current) => {
+      if (current === allImages.length - 1) {
+        return 0;
+      }
 
-    setSelectedImage((current) =>
-      current === project.images.length - 1
-        ? 0
-        : current + 1
-    );
-
+      return current + 1;
+    });
   };
-
 
   const previousImage = () => {
+    setSelectedImage((current) => {
+      if (current === 0) {
+        return allImages.length - 1;
+      }
 
-    setSelectedImage((current) =>
-      current === 0
-        ? project.images.length - 1
-        : current - 1
-    );
-
+      return current - 1;
+    });
   };
-
 
   return (
     <div className="project-page">
@@ -79,7 +96,6 @@ function ProjectPage() {
 
       <main>
 
-
         {/* PROJECT HERO */}
 
         <section className="project-hero">
@@ -98,7 +114,6 @@ function ProjectPage() {
               {project.description}
             </p>
 
-
             <div className="project-tools">
 
               {project.tools.map((tool) => (
@@ -114,6 +129,8 @@ function ProjectPage() {
           </div>
 
 
+          {/* MAIN IMAGE */}
+
           <div
             className="project-main-image clickable-image"
             onClick={() => openImage(0)}
@@ -123,6 +140,10 @@ function ProjectPage() {
               src={project.image}
               alt={project.title}
             />
+
+            <div className="image-overlay">
+              Click to view
+            </div>
 
           </div>
 
@@ -168,45 +189,58 @@ function ProjectPage() {
         </section>
 
 
-        {/* SCREENSHOTS */}
+        {/* PROJECT GALLERY */}
 
-        <section className="screenshots-section">
+        {project.images && project.images.length > 0 && (
 
-          <p className="section-label">
-            PROJECT GALLERY
-          </p>
+          <section className="screenshots-section">
 
-          <h2>
-            Inside the project.
-          </h2>
+            <p className="section-label">
+              PROJECT GALLERY
+            </p>
+
+            <h2>
+              Inside the project.
+            </h2>
 
 
-          <div className="screenshots-grid">
+            <div className="screenshots-grid">
 
-            {project.images.map((image, index) => (
+              {project.images.map((image, index) => {
 
-              <div
-                className="screenshot-card clickable-image"
-                key={image}
-                onClick={() => openImage(index)}
-              >
+                const actualIndex = allImages.indexOf(image);
 
-                <img
-                  src={image}
-                  alt={`${project.title} screenshot ${index + 1}`}
-                />
+                return (
 
-                <span>
-                  SCREEN {String(index + 1).padStart(2, "0")}
-                </span>
+                  <div
+                    className="screenshot-card clickable-image"
+                    key={`${image}-${index}`}
+                    onClick={() => openImage(actualIndex)}
+                  >
 
-              </div>
+                    <img
+                      src={image}
+                      alt={`${project.title} screenshot ${index + 1}`}
+                    />
 
-            ))}
+                    <span>
+                      SCREEN {String(index + 1).padStart(2, "0")}
+                    </span>
 
-          </div>
+                    <div className="image-overlay">
+                      Click to view
+                    </div>
 
-        </section>
+                  </div>
+
+                );
+              })}
+
+            </div>
+
+          </section>
+
+        )}
 
       </main>
 
@@ -215,21 +249,29 @@ function ProjectPage() {
 
       {selectedImage !== null && (
 
-        <div className="image-modal">
+        <div
+          className="image-modal"
+          onClick={closeImage}
+        >
 
           <button
             className="modal-close"
             onClick={closeImage}
+            aria-label="Close image"
           >
             ✕
           </button>
 
 
-          {project.images.length > 1 && (
+          {allImages.length > 1 && (
 
             <button
               className="modal-prev"
-              onClick={previousImage}
+              onClick={(event) => {
+                event.stopPropagation();
+                previousImage();
+              }}
+              aria-label="Previous image"
             >
               ←
             </button>
@@ -237,25 +279,32 @@ function ProjectPage() {
           )}
 
 
-          <div className="modal-image-container">
+          <div
+            className="modal-image-container"
+            onClick={(event) => event.stopPropagation()}
+          >
 
             <img
-              src={project.images[selectedImage]}
+              src={allImages[selectedImage]}
               alt={`${project.title} preview`}
             />
 
             <p>
-              {selectedImage + 1} / {project.images.length}
+              {selectedImage + 1} / {allImages.length}
             </p>
 
           </div>
 
 
-          {project.images.length > 1 && (
+          {allImages.length > 1 && (
 
             <button
               className="modal-next"
-              onClick={nextImage}
+              onClick={(event) => {
+                event.stopPropagation();
+                nextImage();
+              }}
+              aria-label="Next image"
             >
               →
             </button>
